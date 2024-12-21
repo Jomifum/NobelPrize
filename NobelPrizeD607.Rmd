@@ -1,0 +1,157 @@
+---
+title: "Nobel Prize "
+author: "Jose Fuentes"
+date: "2024-12-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Introduction
+Working with the two JSON files available through the API at nobelprize.org, ask and answer 4 interesting questions, e.g. “Which country “lost” the most nobel laureates (who were born there but received their Nobel prize as a citizen of a different country)?” 
+
+#Preparing the dataset
+
+1. Loading Required Packages:
+
+The code starts by loading several R packages necessary for working with web APIs and data manipulation. These packages include httr for making HTTP requests, jsonlite for handling JSON data, dplyr and tidyr for data wrangling, and tidyverse which combines these functionalities. Note that there might be conflicts between some functions from different packages with the same name (e.g., filter). You can use the conflicted package to identify and address these conflicts if needed.
+
+2. Fetching and Exploring Nobel Laureate Data:
+
+The code defines the URL of the Nobel Prize API endpoint that provides information on Nobel laureates. It then uses the fromJSON function from the jsonlite package to retrieve the data in JSON format. Once retrieved, the code explores the structure of the JSON data by displaying the names of the main elements and sub-elements within the list returned by fromJSON. This helps understand how the data is organized within the API response.
+
+```{r preparing}
+#load the packages
+library(httr)
+library(jsonlite)
+library(dplyr)
+
+#fetch JSON data from the Nobel Prize API
+nobel_df <- fromJSON("http://api.nobelprize.org/v1/laureate.json")
+#displays the names that correspond to the keys or attributes in the JSON data retrieved from the API.
+names(nobel_df)
+
+#Sub-element called laureates
+names(nobel_df$laureates)
+
+```
+#Question 1:
+
+How are the Nobel laureates in Chemistry, Economics, and Physics from 2000 to 2024?
+
+This code fetches Nobel Prize data from an API, processes it using R libraries like jsonlite and dplyr, and filters the data to include only laureates in specific categories (Chemistry, Economics, Physics) from 1980 to 2024.
+```{r json}
+
+# Load necessary libraries
+library(httr)
+library(jsonlite)
+library(dplyr)
+library(tidyr)
+
+# Fetch JSON data from the Nobel Prize API
+response <- fromJSON("http://api.nobelprize.org/v1/prize.json")
+
+# Convert the list to a data frame and filter for specific categories and years
+nobel_df <- response$prizes %>%
+  unnest(laureates) %>%
+  mutate(year = as.numeric(year)) %>%
+  filter(category %in% c("chemistry", "economics", "physics") & year >= 2000 & year <= 2024) %>%
+  arrange(year)
+
+# Display the filtered data
+print(nobel_df %>% select(year, category, firstname, surname))
+
+```
+
+
+#Question 2:
+
+Which country "lost" the most Nobel laureates (who were born there but received their Nobel prize as a citizen of a different country)?
+
+This code analyzes Nobel Prize data to identify countries that have "lost" the most laureates, meaning those born in the country but received the prize as citizens of another nation. It fetches data from the API, transforms it to create separate entries for each laureate's prize, and then filters for laureates whose birth and prize-awarding countries differ.
+
+```{r json2}
+# Load necessary libraries
+library(httr)
+library(jsonlite)
+library(dplyr)
+library(tidyr)
+
+# Fetch JSON data from the Nobel Prize API
+nobel <- fromJSON("http://api.nobelprize.org/v1/laureate.json")
+
+# Transform the nested list structure within laureates and create multiple rows for each laureate-prize combination
+nobel_df <- nobel$laureates %>%
+  unnest(prizes) %>%
+  distinct(id, firstname, surname, bornCountry, diedCountry, category, year)
+
+# Identify laureates who received their Nobel Prize as citizens of different countries from where they were born
+lost_laureates <- nobel_df %>%
+  filter(!is.na(bornCountry) & !is.na(diedCountry) & bornCountry != diedCountry) %>%
+  count(bornCountry) %>%
+  arrange(desc(n))
+
+# Display the country that "lost" the most Nobel laureates
+cat("Country that 'lost' the most Nobel laureates:\n", lost_laureates$bornCountry[1])
+
+```
+
+
+#Question 3: Year with the least Nobel winners
+
+This code retrieves data on Nobel Prizes from an API. It then transforms the nested structure to create a data frame with separate rows for each laureate. It converts the year into a numerical format and counts the number of prizes awarded each year. Finally, it identifies and displays the year with the fewest Nobel laureates.
+
+```{r json3}
+# Fetch JSON data from the Nobel Prize API
+nobel <- fromJSON("http://api.nobelprize.org/v1/prize.json")
+
+# Convert the list to a data frame and count laureates per year
+nobel_df <- nobel$prizes %>%
+  unnest(laureates) %>%
+  mutate(year = as.numeric(year)) %>%
+  count(year) %>%
+  arrange(n)
+
+# Display the year with the least Nobel winners
+cat("Year with the least Nobel winners:\n", nobel_df$year[1])
+
+```
+## Including Plots
+
+#Question 4: Top ten countries with more winners and top ten countries with fewer winners
+
+This chunk analyzes Nobel laureate data from an API where first retrieves the data and transforms it to create separate entries for each laureate's prize. Then, it counts the number of laureates from each country, at the end it displays the top 10 countries with both the most and fewest Nobel laureates.
+
+```{r json4}
+# Fetch JSON data from the Nobel Prize API
+nobel <- fromJSON("http://api.nobelprize.org/v1/laureate.json")
+
+# Transform the nested list structure within laureates and create multiple rows for each laureate-prize combination
+nobel_df <- nobel$laureates %>%
+  unnest(prizes) %>%
+  distinct(id, firstname, surname, bornCountry, category, year)
+
+# Count laureates by country
+country_counts <- nobel_df %>%
+  count(bornCountry) %>%
+  arrange(desc(n))
+
+# Display the top ten countries with more winners
+cat("Top ten countries with more Nobel winners:\n")
+print(head(country_counts, 10))
+
+# Display the top ten countries with fewer winners
+cat("\nTop ten countries with fewer Nobel winners:\n")
+print(tail(country_counts, 10))
+
+```
+
+###Conclusions
+
+APIs are vital tools in data science. They provide access to real-time data, automate data collection, enable the integration of diverse data sources, and efficiently handle large datasets. Moreover, APIs allow for customization, enabling data scientists to retrieve only the necessary information, thus optimizing data analysis and improving efficiency.
+
+Utilizing APIs in data sciences allows for efficient, real-time data retrieval and integration, enabling more accurate and comprehensive analysis. By leveraging APIs, data scientists can automate data collection, access diverse datasets, and scale their operations effectively, ultimately leading to more insightful and data-driven decisions.
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
